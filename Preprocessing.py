@@ -129,15 +129,15 @@ def transform_and_standardize(df):
 
     print("Columns log-transformed:", cols_right_skewed_auto)
 
-    # Standardize remaining numeric features
+    # Create list of numeric columns to standardize
     columns_to_standardize = [
         col for col in df.select_dtypes(include='number').columns
-        if col not in columns_distribution and col not in cols_right_skewed_auto]
+        if col not in columns_distribution
+    ]
 
+    # Apply z-score standardization to ALL numeric columns (including those already log-transformed)
     scaler = StandardScaler()
     df[columns_to_standardize] = scaler.fit_transform(df[columns_to_standardize])
-
-    print(f"Standardized columns: {columns_to_standardize}")
 
     return df
 
