@@ -1,8 +1,6 @@
 import pandas as pd
 import numpy as np
-from sklearn.experimental import enable_iterative_imputer
-from sklearn.impute import IterativeImputer
-from sklearn.preprocessing import StandardScaler
+
 
 # Step 1: Filter patients under a minimum age
 def filter_age(df, min_age=18):
@@ -16,16 +14,6 @@ def remove_rows_with_many_missing(df, max_missing=10):
     return df[df.isnull().sum(axis=1) < max_missing].copy()
 
 
-# Step 3: Fill missing values using MICE imputation
-def mice_imputation(df):
-    """Use Multiple Imputation by Chained Equations (MICE) to fill in missing values for numeric features."""
-    numeric_cols = df.select_dtypes(include='number').columns
-    imputer = IterativeImputer(random_state=0)
-    df[numeric_cols] = imputer.fit_transform(df[numeric_cols])
-    return df
-
-
-# Step 4: Clip outliers using percentile thresholds
 def clip_outliers(df, lower_percentile=2, upper_percentile=98):
     """Clip values outside of the given percentiles to reduce outlier impact."""
     numeric_cols = df.select_dtypes(include='number').columns
@@ -36,9 +24,7 @@ def clip_outliers(df, lower_percentile=2, upper_percentile=98):
     return df
 
 
-# Step 5: Feature Engineering
 
-#Step 5A: Created a new categorical feature age_group
 def add_age_columns(df):
     """
     Creates 'age_rounded' per unique patient (subject_id),
@@ -59,7 +45,7 @@ def add_age_columns(df):
     return df
 
 
-# Step 5B: Simplify ethnicity categories
+
 def simplify_ethnicity(df):
     """Map detailed ethnicity values to simplified categories (White, Black, Hispanic, Asian, Unknown, Other)."""
     def map_ethnicity(value):
@@ -79,7 +65,7 @@ def simplify_ethnicity(df):
     return df
 
 
-# Step 6: Drop highly correlated features
+
 def drop_highly_correlated_features(df):
     """Remove features with high correlation to reduce multicollinearity and redundancy."""
     columns_to_drop = [
@@ -101,7 +87,7 @@ def drop_highly_correlated_features(df):
     return df
 
 
-# Step 7: Feature Standardization and Normalization
+
 def transform_and_standardize(df):
     """
     Detects right-skewed numeric features, applies log1p transformation to them,
@@ -123,47 +109,23 @@ def transform_and_standardize(df):
         if col not in columns_distribution:
             skew_val = df[col].skew()
             if skew_val > 1:
-                print(f"{col} is highly right skewed (skew={skew_val:.2f}), applying log transform.")
-                df[col] = np.log1p(df[col])
-                cols_right_skewed_auto.append(col)
 
-    print("Columns log-transformed:", cols_right_skewed_auto)
-
-    # Create list of numeric columns to standardize
-    columns_to_standardize = [
-        col for col in df.select_dtypes(include='number').columns
-        if col not in columns_distribution
-    ]
-
-    # Apply z-score standardization to ALL numeric columns (including those already log-transformed)
-    scaler = StandardScaler()
-    df[columns_to_standardize] = scaler.fit_transform(df[columns_to_standardize])
-
-    return df
-
-
-# Step 8: Encode categorical features
 def encode_categorical_features(df):
     """
     One-hot encode selected categorical columns.
     Keeps all categories (drop_first=False) which is preferred
     for clustering and tree-based models.
     """
-    one_hot_cols = ['first_service', 'ethnicity_simplified']
+
     df = pd.get_dummies(df, columns=[col for col in one_hot_cols if col in df.columns], drop_first=False)
     return df
 
 
-# Main pipeline function
-def prepare_data(df):
-    """Run the complete preprocessing pipeline on the input DataFrame."""
-    df = filter_age(df)
-    df = remove_rows_with_many_missing(df)
-    df = mice_imputation(df)
+
     df = clip_outliers(df)
     df = add_age_columns(df)
     df = simplify_ethnicity(df)
     df = transform_and_standardize(df)
     df = drop_highly_correlated_features(df)
     df = encode_categorical_features(df)
-    return df
+
