@@ -1,5 +1,10 @@
 import pandas as pd
 import numpy as np
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import FunctionTransformer
+from sklearn.impute import IterativeImputer
+from sklearn.preprocessing import StandardScaler
+from sklearn.compose import ColumnTransformer
 
 
 # Step 1: Filter patients under a minimum age
@@ -14,6 +19,7 @@ def remove_rows_with_many_missing(df, max_missing=10):
     return df[df.isnull().sum(axis=1) < max_missing].copy()
 
 
+# Step 3: Clip outliers using percentile thresholds
 def clip_outliers(df, lower_percentile=2, upper_percentile=98):
     """Clip values outside of the given percentiles to reduce outlier impact."""
     numeric_cols = df.select_dtypes(include='number').columns
@@ -24,7 +30,9 @@ def clip_outliers(df, lower_percentile=2, upper_percentile=98):
     return df
 
 
+# Step 4: Feature Engineering
 
+#Step 4A: Created a new categorical feature age_group
 def add_age_columns(df):
     """
     Creates 'age_rounded' per unique patient (subject_id),
@@ -45,7 +53,7 @@ def add_age_columns(df):
     return df
 
 
-
+# Step 4B: Simplify ethnicity categories
 def simplify_ethnicity(df):
     """Map detailed ethnicity values to simplified categories (White, Black, Hispanic, Asian, Unknown, Other)."""
     def map_ethnicity(value):
@@ -65,7 +73,7 @@ def simplify_ethnicity(df):
     return df
 
 
-
+# Step 5: Drop highly correlated features
 def drop_highly_correlated_features(df):
     """Remove features with high correlation to reduce multicollinearity and redundancy."""
     columns_to_drop = [
@@ -87,7 +95,7 @@ def drop_highly_correlated_features(df):
     return df
 
 
-
+# Step 6: Feature Standardization and Normalization
 def transform_and_standardize(df):
     """
     Detects right-skewed numeric features, applies log1p transformation to them,
@@ -109,23 +117,77 @@ def transform_and_standardize(df):
         if col not in columns_distribution:
             skew_val = df[col].skew()
             if skew_val > 1:
+                df[col] = np.log1p(df[col])
+                cols_right_skewed_auto.append(col)
 
+    return df
+
+
+# Step 7: Encode categorical features
 def encode_categorical_features(df):
     """
     One-hot encode selected categorical columns.
     Keeps all categories (drop_first=False) which is preferred
     for clustering and tree-based models.
     """
-
+    one_hot_cols = ['first_service', 'ethnicity_simplified', 'age_group']
     df = pd.get_dummies(df, columns=[col for col in one_hot_cols if col in df.columns], drop_first=False)
     return df
 
 
+def drop_unnecessary_columns(df):
+    """
+    Drops identifier and redundant columns from the dataframe.
+    Specifically removes: ['icustay_id', 'hadm_id', 'subject_id', 'gender', 'ethnicity']
+    while keeping 'is_male' as the only gender indicator.
+    """
+    columns_to_drop = ['icustay_id', 'hadm_id', 'subject_id', 'gender', 'ethnicity']
+    existing_cols_to_drop = [col for col in columns_to_drop if col in df.columns]
 
+    # Drop them safely
+    df = df.drop(columns=existing_cols_to_drop)
+
+    return df
+
+
+# Main pipeline function
+def prepare_data(df):
+    """Run the complete preprocessing pipeline on the input DataFrame."""
+    # df = filter_age(df)
+    # df = remove_rows_with_many_missing(df)
     df = clip_outliers(df)
     df = add_age_columns(df)
     df = simplify_ethnicity(df)
     df = transform_and_standardize(df)
     df = drop_highly_correlated_features(df)
     df = encode_categorical_features(df)
+    df = drop_unnecessary_columns(df)
+
+    return df
+
+def build_pipeline():
+    def get_cols_after_prepare(df):
+        df_prepared = prepare_data(df.copy())
+        numeric_cols = df_prepared.select_dtypes(include='number').columns
+        binary_cols = [c for c in numeric_cols if set(df_prepared[c].dropna().unique()) <= {0, 1}]
+        continuous_cols = [c for c in numeric_cols if c not in binary_cols]
+        return continuous_cols, binary_cols
+
+    def make_pipe(df_sample):
+        conts, bins = get_cols_after_prepare(df_sample)
+
+        ct = ColumnTransformer([
+            ('impute_and_scale', Pipeline([
+                ('imputer', IterativeImputer(random_state=0)),
+                ('scale', StandardScaler())
+            ]), conts),
+            ('binary_passthrough', 'passthrough', bins)
+        ], remainder='drop')
+
+        return Pipeline([
+            ('prepare', FunctionTransformer(prepare_data, validate=False)),
+            ('transform', ct)
+        ])
+
+    return make_pipe
 
