@@ -198,7 +198,7 @@ def build_pipeline():
             ('binary_passthrough', 'passthrough', bins)
         ], remainder='passthrough', verbose_feature_names_out=False )
 
-         return Pipeline([
+        return Pipeline([
             ('prepare', FunctionTransformer(lambda df: prepare_data(df, reference_columns=reference_columns), validate=False)),
             ('transform', ct)
         ])
