@@ -5,6 +5,7 @@ from sklearn.preprocessing import FunctionTransformer
 from sklearn.impute import IterativeImputer
 from sklearn.preprocessing import StandardScaler
 from sklearn.compose import ColumnTransformer
+from sklearn.preprocessing import LabelEncoder
 
 
 # Step 1: Filter patients under a minimum age
@@ -130,7 +131,12 @@ def encode_categorical_features(df):
     Keeps all categories (drop_first=False) which is preferred
     for clustering and tree-based models.
     """
-    one_hot_cols = ['first_service', 'ethnicity_simplified', 'age_group']
+    le = LabelEncoder()
+    if 'age_group' in df.columns:
+        df['age_group_encoded'] = le.fit_transform(df['age_group'].astype(str))
+        df.drop(columns=['age_group'], inplace=True)
+        
+    one_hot_cols = ['first_service', 'ethnicity_simplified']
     df = pd.get_dummies(df, columns=[col for col in one_hot_cols if col in df.columns], drop_first=False)
     return df
 
@@ -141,7 +147,8 @@ def drop_unnecessary_columns(df):
     Specifically removes: ['icustay_id', 'hadm_id', 'subject_id', 'gender', 'ethnicity']
     while keeping 'is_male' as the only gender indicator.
     """
-    columns_to_drop = ['icustay_id', 'hadm_id', 'subject_id', 'gender', 'ethnicity']
+    columns_to_drop = ['icustay_id', 'hadm_id', 'subject_id', 'gender', 'ethnicity', 'age', 'age_rounded',
+        'race_white', 'race_black', 'race_hispanic', 'race_other']
     existing_cols_to_drop = [col for col in columns_to_drop if col in df.columns]
 
     # Drop them safely
