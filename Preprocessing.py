@@ -137,6 +137,7 @@ def encode_categorical_features(df):
         
     one_hot_cols = ['first_service', 'ethnicity_simplified']
     df = pd.get_dummies(df, columns=[col for col in one_hot_cols if col in df.columns], drop_first=False)
+    return df
 
 
 def drop_unnecessary_columns(df):
