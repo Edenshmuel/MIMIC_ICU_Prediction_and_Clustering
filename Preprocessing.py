@@ -5,7 +5,7 @@ from sklearn.preprocessing import FunctionTransformer
 from sklearn.impute import IterativeImputer
 from sklearn.preprocessing import StandardScaler
 from sklearn.compose import ColumnTransformer
-from sklearn.preprocessing import LabelEncoder
+from sklearn.preprocessing import OneHotEncoder, OrdinalEncoder
 
 
 # Step 1: Filter patients under a minimum age
@@ -166,34 +166,67 @@ def prepare_data(df):
     df = simplify_ethnicity(df)
     df = transform_and_standardize(df)
     df = drop_highly_correlated_features(df)
-    df = encode_categorical_features(df)
+    #df = encode_categorical_features(df)
     df = drop_unnecessary_columns(df)
 
     return df
 
+# def build_pipeline():
+#     def get_cols_after_prepare(df):
+#         df_prepared = prepare_data(df.copy())
+#         numeric_cols = df_prepared.select_dtypes(include='number').columns
+#         binary_cols = [c for c in numeric_cols if set(df_prepared[c].dropna().unique()) <= {0, 1}]
+#         continuous_cols = [c for c in numeric_cols if c not in binary_cols]
+#         return continuous_cols, binary_cols
+
+#     def make_pipe(df_sample):
+#         conts, bins = get_cols_after_prepare(df_sample)
+
+#         ct = ColumnTransformer([
+#             ('impute_and_scale', Pipeline([
+#                 ('imputer', IterativeImputer(random_state=0)),
+#                 ('scale', StandardScaler())
+#             ]), conts),
+#             ('binary_passthrough', 'passthrough', bins)
+#         ], remainder='passthrough', verbose_feature_names_out=False )
+
+#         return Pipeline([
+#             ('prepare', FunctionTransformer(prepare_data, validate=False)),
+#             ('transform', ct)
+#         ])
+
+#     return make_pipe
+
+
 def build_pipeline():
     def get_cols_after_prepare(df):
-        df_prepared = prepare_data(df.copy())
-        numeric_cols = df_prepared.select_dtypes(include='number').columns
-        binary_cols = [c for c in numeric_cols if set(df_prepared[c].dropna().unique()) <= {0, 1}]
-        continuous_cols = [c for c in numeric_cols if c not in binary_cols]
-        return continuous_cols, binary_cols
+        df2 = prepare_data(df.copy())
+        num_cols = df2.select_dtypes(include='number').columns
+        bin_cols = [c for c in num_cols if set(df2[c].dropna().unique()) <= {0, 1}]       
+        cont_cols = [c for c in num_cols if c not in bin_cols]                           
+        ord_cols  = ['age_group'] if 'age_group' in df2.columns else []                   
+        ohe_cols  = [c for c in ['first_service', 'ethnicity_simplified'] 
+                     if c in df2.columns]                                                
+        return cont_cols, bin_cols, ord_cols, ohe_cols
 
     def make_pipe(df_sample):
-        conts, bins = get_cols_after_prepare(df_sample)
+        conts, bins, ords, ohes = get_cols_after_prepare(df_sample)
 
         ct = ColumnTransformer([
-            ('impute_and_scale', Pipeline([
-                ('imputer', IterativeImputer(random_state=0)),
-                ('scale', StandardScaler())
+            ('num', Pipeline([
+                ('impute', IterativeImputer(random_state=0)),                  
+                ('scale', StandardScaler())                                   
             ]), conts),
-            ('binary_passthrough', 'passthrough', bins)
-        ], remainder='passthrough', verbose_feature_names_out=False )
+            ('bin', 'passthrough', bins),                                       
+            ('ord', OrdinalEncoder(), ords),                                     
+            ('ohe', OneHotEncoder(handle_unknown='ignore', sparse=False), ohes)  
+        ], remainder='drop', verbose_feature_names_out=False)
 
         return Pipeline([
-            ('prepare', FunctionTransformer(prepare_data, validate=False)),
-            ('transform', ct)
+            ('prep', FunctionTransformer(prepare_data, validate=False)),  
+            ('trans', ct)                                                
         ])
 
     return make_pipe
+
 
