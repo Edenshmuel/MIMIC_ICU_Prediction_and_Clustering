@@ -165,7 +165,7 @@ def drop_unnecessary_columns(df):
 
 
 # Main pipeline function
-def prepare_data(df):
+def prepare_data(df, reference_columns=None):
     """Run the complete preprocessing pipeline on the input DataFrame."""
     # df = filter_age(df)
     # df = remove_rows_with_many_missing(df)
@@ -174,7 +174,7 @@ def prepare_data(df):
     df = simplify_ethnicity(df)
     df = transform_and_standardize(df)
     df = drop_highly_correlated_features(df)
-    df = encode_categorical_features(df)
+    df = encode_categorical_features(df, reference_columns=reference_columns)
     df = drop_unnecessary_columns(df)
 
     return df
@@ -198,8 +198,8 @@ def build_pipeline():
             ('binary_passthrough', 'passthrough', bins)
         ], remainder='passthrough', verbose_feature_names_out=False )
 
-        return Pipeline([
-            ('prepare', FunctionTransformer(prepare_data, validate=False)),
+         return Pipeline([
+            ('prepare', FunctionTransformer(lambda df: prepare_data(df, reference_columns=reference_columns), validate=False)),
             ('transform', ct)
         ])
 
