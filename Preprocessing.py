@@ -125,7 +125,7 @@ def transform_and_standardize(df):
 
 
 # Step 7: Encode categorical features
-def encode_categorical_features(df, reference_columns=None):
+def encode_categorical_features(df):
     """
     One-hot encode selected categorical columns.
     If reference_columns is provided, ensures output matches these columns.
@@ -137,15 +137,6 @@ def encode_categorical_features(df, reference_columns=None):
         
     one_hot_cols = ['first_service', 'ethnicity_simplified']
     df = pd.get_dummies(df, columns=[col for col in one_hot_cols if col in df.columns], drop_first=False)
-    
-    # Align to reference columns if provided
-    if reference_columns is not None:
-        missing_cols = set(reference_columns) - set(df.columns)
-        for col in missing_cols:
-            df[col] = 0
-        # Make sure columns are in the same order
-        df = df[reference_columns]
-    return df
 
 
 def drop_unnecessary_columns(df):
@@ -165,7 +156,7 @@ def drop_unnecessary_columns(df):
 
 
 # Main pipeline function
-def prepare_data(df, reference_columns=None):
+def prepare_data(df):
     """Run the complete preprocessing pipeline on the input DataFrame."""
     # df = filter_age(df)
     # df = remove_rows_with_many_missing(df)
@@ -198,9 +189,8 @@ def build_pipeline():
             ('binary_passthrough', 'passthrough', bins)
         ], remainder='passthrough', verbose_feature_names_out=False )
 
-        prepare_func = partial(prepare_data, reference_columns=reference_columns)
         return Pipeline([
-            ('prepare', FunctionTransformer(prepare_func, validate=False)),
+            ('prepare', FunctionTransformer(prepare_data, validate=False)),
             ('transform', ct)
         ])
 
