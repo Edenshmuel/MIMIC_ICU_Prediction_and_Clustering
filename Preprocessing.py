@@ -182,7 +182,7 @@ def build_pipeline():
                 ('scale', StandardScaler())
             ]), conts),
             ('binary_passthrough', 'passthrough', bins)
-        ], remainder='drop')
+        ], remainder='passthrough')
 
         return Pipeline([
             ('prepare', FunctionTransformer(prepare_data, validate=False)),
