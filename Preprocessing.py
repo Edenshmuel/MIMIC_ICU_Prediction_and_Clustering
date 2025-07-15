@@ -202,29 +202,27 @@ def build_pipeline():
     def get_cols_after_prepare(df):
         df2 = prepare_data(df.copy())
         num_cols = df2.select_dtypes(include='number').columns
-        bin_cols = [c for c in num_cols if set(df2[c].dropna().unique()) <= {0, 1}]       
-        cont_cols = [c for c in num_cols if c not in bin_cols]                           
-        ord_cols  = ['age_group'] if 'age_group' in df2.columns else []                   
-        ohe_cols  = [c for c in ['first_service', 'ethnicity_simplified'] 
-                     if c in df2.columns]                                                
+        bin_cols = [c for c in num_cols if set(df2[c].dropna().unique()) <= {0,1}]
+        cont_cols = [c for c in num_cols if c not in bin_cols]
+        ord_cols  = ['age_group'] if 'age_group' in df2.columns else []
+        ohe_cols  = [c for c in ['first_service','ethnicity_simplified'] if c in df2.columns]
         return cont_cols, bin_cols, ord_cols, ohe_cols
 
     def make_pipe(df_sample):
         conts, bins, ords, ohes = get_cols_after_prepare(df_sample)
-
         ct = ColumnTransformer([
             ('num', Pipeline([
-                ('impute', IterativeImputer(random_state=0)),                  
-                ('scale', StandardScaler())                                   
+                ('impute', IterativeImputer(random_state=0)),
+                ('scale', StandardScaler())
             ]), conts),
-            ('bin', 'passthrough', bins),                                       
-            ('ord', OrdinalEncoder(), ords),                                     
-            ('ohe', OneHotEncoder(handle_unknown='ignore', sparse=False), ohes)  
+            ('bin', 'passthrough', bins),
+            ('ord', OrdinalEncoder(), ords),
+            ('ohe', OneHotEncoder(handle_unknown='ignore', sparse_output=False), ohes)
         ], remainder='drop', verbose_feature_names_out=False)
 
         return Pipeline([
-            ('prep', FunctionTransformer(prepare_data, validate=False)),  
-            ('trans', ct)                                                
+            ('prep', FunctionTransformer(prepare_data, validate=False)),
+            ('trans', ct)
         ])
 
     return make_pipe
