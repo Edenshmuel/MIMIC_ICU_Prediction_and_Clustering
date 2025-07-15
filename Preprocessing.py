@@ -165,7 +165,7 @@ def prepare_data(df):
     df = simplify_ethnicity(df)
     df = transform_and_standardize(df)
     df = drop_highly_correlated_features(df)
-    df = encode_categorical_features(df, reference_columns=reference_columns)
+    df = encode_categorical_features(df)
     df = drop_unnecessary_columns(df)
 
     return df
